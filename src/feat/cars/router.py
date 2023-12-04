@@ -8,12 +8,18 @@ cars_router = APIRouter(prefix="/cars", tags=["cars"])
 
 
 @cars_router.get("/search")
-async def get_all_cars(
+async def search_cars(
     user=Depends(get_user_id),
     q: str = "",
+    page: int = 0,
+    limit: int = 20,
 ):
     with Session(db_engine) as session:
-        print(q)
-        query = select(Car).where(Car.brand.ilike(f"%{q}%"))
+        query = (
+            select(Car)
+            .where(Car.brand.ilike(f"%{q}%"))
+            .offset(page * limit)
+            .limit(limit)
+        )
         cars = session.exec(query).all()
         return cars
