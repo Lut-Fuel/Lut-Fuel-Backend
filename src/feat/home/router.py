@@ -6,7 +6,7 @@ home_router = APIRouter()
 
 @home_router.get("/")
 async def home():
-    return {"message": "LutFuel API is Running"}
+    return {"message": "LutFuel API is Running, deployed December 4th"}
 
 
 @home_router.get("/user")
