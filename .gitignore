@@ -26,3 +26,8 @@ build/
 *.log
 logs/
 log/
+
+.DS_Store
+
+# keys
+keys/
