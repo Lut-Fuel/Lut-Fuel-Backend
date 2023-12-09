@@ -7,6 +7,7 @@ from core.db import db_engine
 from feat.home.router import home_router
 from feat.trip.router import trip_router
 from feat.cars.router import cars_router
+from feat.dummy.router import dummy_router
 
 # SQLModel setup
 SQLModel.metadata.create_all(db_engine)
@@ -25,3 +26,4 @@ app = FastAPI()
 app.include_router(home_router)
 app.include_router(trip_router)
 app.include_router(cars_router)
+app.include_router(dummy_router)
