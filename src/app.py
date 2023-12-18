@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Depends, APIRouter, HTTPException
-from sqlmodel import SQLModel
+from sqlmodel import SQLModel, Session
 import firebase_admin
 from firebase_admin import credentials
 from pydantic import BaseModel
