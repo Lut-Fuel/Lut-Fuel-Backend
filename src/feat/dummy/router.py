@@ -164,10 +164,8 @@ async def add_user_car(
 
 @dummy_router.get("/location/search")
 async def search_location(
+    q: str,
     user_id: int = Depends(get_user_id),
-    page: int = 0,
-    size: int = 20,
-    q: str = "",
 ):
     return {
         "message": "Location list fetched successfully",
@@ -229,19 +227,31 @@ async def get_routes(
         "message": "Routes fetched successfully",
         "data": [
             {
-                "id": 1,
-                "name": "Route 1",
-                "tolls": False,
-                "distance": 172.9,  # km
-                "duration": 230,  # minutes
-                "cost": 123000,  # rupiah
+                "id": 0,
+                "name": "Tolls",
+                "distance": 172.9,
+                "duration": 230,
+                "cost": 123000,
                 "polyline": [
                     "vs{d@yx}jSe@DYBu@H_@D]Hc@NG@c@PYLQFu@POB[J_@J_@HOBOBy@N_@F}@LcALe@HIBC?aAPQBm@JqATeAP",
                     "zrzd@oo}jSABABA?EBKB]HiC`@",
                     "zlzd@sm}jSC@SBiATkAT",
                     "lgzd@al}jSQLMFMLSRSbC",
                 ],
-            }
+            },
+            {
+                "id": 1,
+                "name": "No Tolls",
+                "distance": 172.9,
+                "duration": 230,
+                "cost": 123000,
+                "polyline": [
+                    "vs{d@yx}jSe@DYBu@H_@D]Hc@NG@c@PYLQFu@POB[J_@J_@HOBOBy@N_@F}@LcALe@HIBC?aAPQBm@JqATeAP",
+                    "zrzd@oo}jSABABA?EBKB]HiC`@",
+                    "zlzd@sm}jSC@SBiATkAT",
+                    "lgzd@al}jSQLMFMLSRSbC",
+                ],
+            },
         ],
     }
 
