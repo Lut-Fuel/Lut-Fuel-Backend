@@ -165,11 +165,6 @@ async def users_car(
                 "id": car.id,
                 "customName": car.custom_name,
                 "fuelType": car.fuel_grade,
-                # "carName": car.car_name,
-                # "cylinder": car.number_of_cylinders,
-                # "engineVolume": car.engine_type,
-                # "power": car.engine_horse_power,
-                # "weight": car.engine_horse_power_rpm,
             }
             for car in cars_ownership
         ]
@@ -247,6 +242,19 @@ async def add_user_car(
         session.add(car_ownership)
         session.commit()
     return {"message": "User's car added successfully"}
+
+
+@app.delete("/users-car/{id}")
+async def delete_user_car(
+    id: int,
+    user_id: str = Depends(get_user_id),
+):
+    with Session(db_engine) as session:
+        query = select(CarOwnership).where(CarOwnership.id == id)
+        car_ownership = session.exec(query).first()
+        session.delete(car_ownership)
+        session.commit()
+    return {"message": "User's car deleted successfully"}
 
 
 ## Search Location
