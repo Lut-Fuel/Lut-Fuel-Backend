@@ -5,13 +5,10 @@ from firebase_admin import credentials
 from pydantic import BaseModel
 
 from core.db import db_engine
-from feat.home.router import home_router
-from feat.trip.router import trip_router
-from feat.cars.router import cars_router
 from feat.dummy.router import dummy_router
 from feat.auth.router import get_user_id
 
-from sqlmodel import Field
+from sqlmodel import Field, select
 from typing import Optional
 
 
@@ -25,6 +22,7 @@ class CarOwnership(SQLModel, table=True):
 
 class History(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: str
     car_id: int
     car_custom_name: Optional[str] = None
     fuel_needed: float
@@ -68,15 +66,12 @@ firebase_admin.initialize_app(firebase_cred)
 # FastAPI setup
 app = FastAPI()
 
-app.include_router(home_router)
-app.include_router(trip_router)
-app.include_router(cars_router)
 app.include_router(dummy_router)
 
 
 @app.get("/home")
 async def home(
-    user_id: int = Depends(get_user_id),
+    user_id: str = Depends(get_user_id),
 ):
     return {
         "message": "Home fetched successfully",
@@ -104,7 +99,7 @@ async def home(
 
 @app.get("/history")
 async def history(
-    user_id: int = Depends(get_user_id),
+    user_id: str = Depends(get_user_id),
     page: int = 0,
     size: int = 20,
 ):
@@ -126,7 +121,7 @@ async def history(
 @app.get("/history/{id}")
 async def history_detail(
     id: int,
-    user_id: int = Depends(get_user_id),
+    user_id: str = Depends(get_user_id),
 ):
     return {
         "message": "Cost calculated successfully",
@@ -153,7 +148,7 @@ async def history_detail(
 
 @app.get("/users-car")
 async def users_car(
-    user_id: int = Depends(get_user_id),
+    user_id: str = Depends(get_user_id),
     page: int = 0,
     size: int = 20,
 ):
@@ -176,19 +171,30 @@ async def users_car(
 
 @app.get("/cars/search")
 async def search_car(
-    user_id: int = Depends(get_user_id),
+    user_id: str = Depends(get_user_id),
     page: int = 0,
     size: int = 20,
     q: str = "",
 ):
+    with Session(db_engine) as session:
+        query = (
+            select(Car)
+            .where(Car.car_name.ilike(f"%{q}%"))
+            .offset(page * size)
+            .limit(size)
+        )
+        cars = session.exec(query).all()
+        car_data = [
+            {
+                "id": car.id,
+                "carName": car.car_name,
+            }
+            for car in cars
+        ]
+
     return {
         "message": "Car list fetched successfully",
-        "data": [
-            {
-                "id": 1,
-                "carName": "Toyota Supra MK4",
-            }
-        ],
+        "data": car_data,
     }
 
 
@@ -201,8 +207,18 @@ class AddUserCarRequest(BaseModel):
 @app.post("/users-car")
 async def add_user_car(
     request: AddUserCarRequest,
-    user_id: int = Depends(get_user_id),
+    user_id: str = Depends(get_user_id),
 ):
+    car_ownership = CarOwnership(
+        user_id=user_id, 
+        car_id=request.carId,
+        custom_name=request.customName, 
+        fuel_grade=request.fuelId
+        )
+ 
+    with Session(db_engine) as session:
+        session.add(car_ownership)
+        session.commit()
     return {"message": "User's car added successfully"}
 
 
@@ -234,7 +250,7 @@ async def add_user_car(
 @app.get("/location/search")
 async def search_location(
     q: str,
-    user_id: int = Depends(get_user_id),
+    user_id: str = Depends(get_user_id),
 ):
     return {
         "message": "Location list fetched successfully",
@@ -286,7 +302,7 @@ async def search_location(
 
 @app.get("/routes")
 async def get_routes(
-    user_id: int = Depends(get_user_id),
+    user_id: str = Depends(get_user_id),
     fromLatitude: float = 0,
     fromLongitude: float = 0,
     destinationLatitude: float = 0,
@@ -399,7 +415,7 @@ class CalculateCostRequest(BaseModel):
 @dummy_router.post("/calculate-cost")
 async def calculate_cost(
     request: CalculateCostRequest,
-    user_id: int = Depends(get_user_id),
+    user_id: str = Depends(get_user_id),
 ):
     return {
         "message": "Cost calculated successfully",
