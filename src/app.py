@@ -152,20 +152,47 @@ async def users_car(
     page: int = 0,
     size: int = 20,
 ):
+    with Session(db_engine) as session:
+        query = (
+            select(CarOwnership)
+            .where(CarOwnership.user_id.ilike(f"%{user_id}%"))
+            .offset(page * size)
+            .limit(size)
+        )
+        cars_ownership = session.exec(query).all()
+        cars_ownership_data = [
+            {
+                "id": car.id,
+                "customName": car.custom_name,
+                "fuelType": car.fuel_grade,
+                # "carName": car.car_name,
+                # "cylinder": car.number_of_cylinders,
+                # "engineVolume": car.engine_type,
+                # "power": car.engine_horse_power,
+                # "weight": car.engine_horse_power_rpm,
+            }
+            for car in cars_ownership
+        ]
+        query= (
+            select(Car)
+            .where(Car.id.in_([car.car_id for car in cars_ownership]))
+        )
+        cars = session.exec(query).all()
+        cars_data = [
+            {
+                "carName": car.car_name,
+                "cylinder": car.number_of_cylinders,
+                "engineVolume": car.engine_type,
+                "power": car.engine_horse_power,
+                "weight": car.engine_horse_power_rpm,
+            }
+            for car in cars
+        ]
+        for i in range(len(cars_ownership_data)):
+            cars_ownership_data[i].update(cars_data[i])
     return {
         "message": "User's car list fetched successfully",
-        "data": [
-            {
-                "id": 1,
-                "customName": "Supra Bapak",
-                "carName": "Toyota Supra MK4",
-                "fuelType": "Pertalite",
-                "cylinder": "6 Cylinder",
-                "engineVolume": "3000 cc",
-                "power": "320 hp",
-                "weight": "1500 kg",
-            }
-        ],
+        "data": cars_ownership_data,
     }
 
 
