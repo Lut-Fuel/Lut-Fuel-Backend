@@ -11,6 +11,7 @@ from feat.auth.router import get_user_id
 from sqlmodel import Field, select
 from typing import Optional
 
+from get_polyline import get_routes, search_location
 
 class CarOwnership(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -289,15 +290,21 @@ async def search_location(
 ):
     return {
         "message": "Location list fetched successfully",
-        "data": [
-            {
-                "name": "Fakultas Teknik Univ ABC",
-                "address": "Jl. ABC No. 123, Jakarta Selatan, DKI Jakarta",
-                "latitude": -6.123456,
-                "longitude": 106.123456,
-            }
-        ],
+        "data": search_location(q)
     }
+
+
+#     return {
+#         "message": "Location list fetched successfully",
+#         "data": [
+#             {
+#                 "name": "Fakultas Teknik Univ ABC",
+#                 "address": "Jl. ABC No. 123, Jakarta Selatan, DKI Jakarta",
+#                 "latitude": -6.123456,
+#                 "longitude": 106.123456,
+#             }
+#         ],
+#     }
 
 
 ## Get Routes
@@ -345,34 +352,7 @@ async def get_routes(
 ):
     return {
         "message": "Routes fetched successfully",
-        "data": [
-            {
-                "id": 0,
-                "name": "Tolls",
-                "distance": 172.9,
-                "duration": 230,
-                "cost": 123000,
-                "polyline": [
-                    "vs{d@yx}jSe@DYBu@H_@D]Hc@NG@c@PYLQFu@POB[J_@J_@HOBOBy@N_@F}@LcALe@HIBC?aAPQBm@JqATeAP",
-                    "zrzd@oo}jSABABA?EBKB]HiC`@",
-                    "zlzd@sm}jSC@SBiATkAT",
-                    "lgzd@al}jSQLMFMLSRSbC",
-                ],
-            },
-            {
-                "id": 1,
-                "name": "No Tolls",
-                "distance": 172.9,
-                "duration": 230,
-                "cost": 123000,
-                "polyline": [
-                    "vs{d@yx}jSe@DYBu@H_@D]Hc@NG@c@PYLQFu@POB[J_@J_@HOBOBy@N_@F}@LcALe@HIBC?aAPQBm@JqATeAP",
-                    "zrzd@oo}jSABABA?EBKB]HiC`@",
-                    "zlzd@sm}jSC@SBiATkAT",
-                    "lgzd@al}jSQLMFMLSRSbC",
-                ],
-            },
-        ],
+        "data": get_routes(fromLatitude, fromLongitude, destinationLatitude, destinationLongitude),
     }
 
 
