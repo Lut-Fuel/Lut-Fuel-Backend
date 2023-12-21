@@ -43,6 +43,7 @@ class History(SQLModel, table=True):
     tolls: bool
     fuel_cost: float
     toll_cost: float
+    
 
 
 class Car(SQLModel, table=True):
@@ -91,31 +92,65 @@ app = FastAPI()
 
 app.include_router(dummy_router)
 
-
 @app.get("/home")
 async def home(
     user_id: str = Depends(get_user_id),
 ):
+    with Session(db_engine) as session:
+        query = (
+            select(History)
+            .where(History.user_id.ilike(f"%{user_id}%"))
+        )
+        history_data = session.exec(query).all()
+        distance_traveled = 0
+        fuel_consumed = 0
+        for history in history_data:
+            distance_traveled += history.distance
+            fuel_consumed += history.fuel_needed
+
+        query = (
+            select(CarOwnership)
+            .where(CarOwnership.user_id.ilike(f"%{user_id}%"))
+            .offset(0)
+            .limit(4)
+        )
+        cars_ownership = session.exec(query).all()
+        cars_ownership_data = [
+            {
+                "customName": car.custom_name,
+                "fuelType": car.fuel_grade,
+            }
+            for car in cars_ownership
+        ]
+
+        query = (
+            select(History)
+            .where(History.user_id.ilike(f"%{user_id}%"))
+            .offset(0)
+            .limit(4)
+        )
+        history_data = []
+        for history in session.exec(query).all():
+            car = session.query(Car).filter(Car.id == history.car_id).first()
+            history_data.append({
+                "id": history.id,
+                "carName": car.car_name,
+                "from": history.from_location,
+                "destination": history.destination,
+                "fuelNeeded": history.fuel_needed,
+                "cost": history.fuel_cost,
+            })
+
     return {
         "message": "Home fetched successfully",
         "data": {
-            "stats": {"distanceTraveled": 172.9, "fuelConsumed": 12.3},
-            "cars": [
+            "stats": 
                 {
-                    "customName": "Toyota Supra MK4",
-                    "fuelType": "Pertalite",
+                "distanceTraveled": distance_traveled,
+                "fuelConsumed": fuel_consumed,
                 },
-            ],
-            "history": [
-                {
-                    "id": 1,
-                    "carName": "Toyota Supra MK4",
-                    "from": "Jakarta",
-                    "destination": "Bandung",
-                    "fuelNeeded": 12.3,
-                    "cost": 123000,
-                }
-            ],
+            "cars": cars_ownership_data,
+            "history": history_data,
         },
     }
 
@@ -484,7 +519,7 @@ async def predict(car_id: int, fuel_id: int, dist: float):
     predicted_value = prediction[0][0]
 
     total_fuel = dist / predicted_value
-    cost_total = total_fuel * fuel_input.cost
+    cost_total = total_fuel * fuel_input.fuel_price
 
     return {"prediction": predicted_value,
             "total fuel": total_fuel,
@@ -511,29 +546,47 @@ async def calculate_cost(
     request: CalculateCostRequest,
     user_id: str = Depends(get_user_id),
 ):
-    prediction = await predict(request.carId, request.fuelId)
-    fuel_consumption = prediction['prediction'] 
+    prediction = await predict(request.carId, request.fuelId,request.distance)
+    fuel_consumption = prediction['total fuel']
+    fuel_cost = prediction['total cost'] 
 
 
     detail = History(
         car_id=request.carId,
         fuel_id=request.fuelId,
         car_custom_name=CarOwnership.custom_name,
-        fuel_needed=float(cost),
+        fuel_needed=float(fuel_consumption),
         distance=request.distance,
         from_location=request.fromLocation,
         destination=request.destination,
         tolls=request.tolls,
-        fuel_cost=200000,
+        fuel_cost=float(fuel_cost),
         toll_cost=25000,
         user_id=user_id
     )
 
+
+
     with Session(db_engine) as session:
         session.add(detail)
+        # session.flush()
+        # session.refresh(detail)
         session.commit()
 
     return {
         "message": "Cost calculated successfully",
-        "data": detail,
+        "data": {
+            "car_id": request.carId,
+            "fuel_id": request.fuelId,
+            "car_custom_name": request.carCustomname,
+            "distance": request.distance,
+            "fuel_needed": float(fuel_consumption),
+            "from_location": request.fromLocation,
+            "destination": request.destination,
+            "tolls": request.tolls,
+            "fuel_cost": float(fuel_cost),
+            "toll_cost": 25000,
+            "user_id": user_id
+        }
+        
     }
