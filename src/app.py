@@ -18,6 +18,8 @@ from get_polyline import get_routes, search_location
 
 class PredictionResponse(BaseModel):
     prediction: float
+    total_fuel: float
+    cost_total: float
 
 class CarOwnership(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -61,7 +63,7 @@ class Car(SQLModel, table=True):
     car_name: str
 
 
-class SPBU_Data(SQLModel, table=true):
+class SPBU_Data(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     gas_station: str
     fuel_type: str
@@ -461,9 +463,10 @@ async def car_data(car_id: int):
     return car
 
 @app.post('/predict/', response_model=PredictionResponse)
-async def predict(car_id: int, fuel_id: int):
+async def predict(car_id: int, fuel_id: int, dist: float):
     with Session(db_engine) as session:
         car_input = session.get(Car, car_id)
+        fuel_input = session.get(SPBU_Data, fuel_id)
     
     input_data = np.array([[
         car_input.number_of_cylinders,
@@ -473,14 +476,19 @@ async def predict(car_id: int, fuel_id: int):
         car_input.transmission,
         car_input.fuel_tank_capacity,
         car_input.acceleration_0_to_100_km,
-        fuel_id
+        fuel_input.fuel_grade
     ]])
     
     scaled_input = scaler.transform(input_data)
     prediction = model.predict(scaled_input)
     predicted_value = prediction[0][0]
 
-    return {"prediction": predicted_value}
+    total_fuel = dist / predicted_value
+    cost_total = total_fuel * fuel_input.cost
+
+    return {"prediction": predicted_value,
+            "total fuel": total_fuel,
+            "total cost": cost_total}
 
 
 
