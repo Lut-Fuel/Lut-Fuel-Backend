@@ -68,7 +68,7 @@ class SPBU_Data(SQLModel, table=True):
     gas_station: str
     fuel_type: str
     fuel_grade: int
-    cost: int
+    fuel_price: int
 
 model = tf.keras.models.load_model('model.h5')
 scaler = joblib.load('scaler.joblib')
@@ -512,7 +512,8 @@ async def calculate_cost(
     user_id: str = Depends(get_user_id),
 ):
     prediction = await predict(request.carId, request.fuelId)
-    cost = prediction['prediction'] 
+    fuel_consumption = prediction['prediction'] 
+
 
     detail = History(
         car_id=request.carId,
