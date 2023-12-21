@@ -3,6 +3,9 @@ from sqlmodel import SQLModel, Session
 import firebase_admin
 from firebase_admin import credentials
 from pydantic import BaseModel
+import tensorflow as tf
+import numpy as np
+import joblib
 
 from core.db import db_engine
 from feat.dummy.router import dummy_router
@@ -12,6 +15,9 @@ from sqlmodel import Field, select
 from typing import Optional
 
 from get_polyline import get_routes, search_location
+
+class PredictionResponse(BaseModel):
+    prediction: float
 
 class CarOwnership(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -25,10 +31,12 @@ class History(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: str
     car_id: int
+    fuel_id: int
     car_custom_name: Optional[str] = None
     fuel_needed: float
     distance: float
-    from_location: str = Field(alias="from")
+    # from_location: str = Field(alias="from")
+    from_location: str
     destination: str
     tolls: bool
     fuel_cost: float
@@ -53,8 +61,13 @@ class Car(SQLModel, table=True):
     car_name: str
 
 
+model = tf.keras.models.load_model('model.h5')
+scaler = joblib.load('scaler.joblib')
+
 # SQLModel setup
 SQLModel.metadata.create_all(db_engine)
+
+
 
 
 # Firebase setup
@@ -104,18 +117,27 @@ async def history(
     page: int = 0,
     size: int = 20,
 ):
+    with Session(db_engine) as session:
+        query = (
+            select(History)
+            .where(History.user_id.ilike(f"%{user_id}%"))
+            .offset(page * size)
+            .limit(size)
+        )
+        history_data = []
+        for history in session.exec(query).all():
+            car = session.query(Car).filter(Car.id == history.car_id).first()
+            history_data.append({
+                "id": history.id,
+                "carName": car.car_name,
+                "from": history.from_location,
+                "destination": history.destination,
+                "fuelNeeded": history.fuel_needed,
+                "cost": history.fuel_cost,
+            })
     return {
         "message": "History fetched successfully",
-        "data": [
-            {
-                "id": 1,
-                "carName": "Toyota Supra MK4",
-                "from": "Jakarta",
-                "destination": "Bandung",
-                "fuelNeeded": 12.3,
-                "cost": 123000,
-            }
-        ],
+        "data": history_data,
     }
 
 
@@ -124,26 +146,33 @@ async def history_detail(
     id: int,
     user_id: str = Depends(get_user_id),
 ):
+    with Session(db_engine) as session:
+        query = select(History).where(History.id == id)
+        history = session.exec(query).first()
+        history_data = {
+            "id": history.id,
+            "carCustomName": history.car_custom_name,
+            "fuelType": history.fuel_id,
+            "distance": history.distance,
+            "from": history.from_location,
+            "destination": history.destination,
+            "fuelNeeded": history.fuel_needed,
+            "fuelCost": history.fuel_cost,
+            "tollCost": history.toll_cost,
+            "totalCost": history.fuel_cost + history.toll_cost,
+        }
+        query = select(Car).where(Car.id == history.car_id)
+        car = session.exec(query).first()
+        history_data.update({
+            "carName": car.car_name,
+            "cyliner": car.number_of_cylinders,
+            "engineVolume": car.engine_type,
+            "power": car.engine_horse_power,
+            "weight": car.engine_horse_power_rpm,
+        })
     return {
         "message": "Cost calculated successfully",
-        "data": {
-            "id": 1,
-            "carName": "Toyota Supra MK4",
-            "carCustomName": "Supra Bapak",
-            "fuelType": "Pertalite",
-            "cyliner": "6 Cylinder",
-            "engineVolume": "3000 cc",
-            "power": "320 hp",
-            "weight": "1500 kg",
-            "fuelNeeded": 12.3,
-            "distance": 172.9,
-            "from": "Jakarta",
-            "destination": "Bandung",
-            "tolls": False,
-            "fuelCost": 123000,
-            "tollCost": 0,
-            "totalCost": 123000,
-        },
+        "data": history_data,
     }
 
 
@@ -284,7 +313,7 @@ async def delete_user_car(
 
 
 @app.get("/location/search")
-async def search_location(
+async def search_loc(
     q: str,
     user_id: str = Depends(get_user_id),
 ):
@@ -343,7 +372,7 @@ async def search_location(
 
 
 @app.get("/routes")
-async def get_routes(
+async def get_route(
     user_id: str = Depends(get_user_id),
     fromLatitude: float = 0,
     fromLongitude: float = 0,
@@ -416,40 +445,79 @@ class NewCarRequest(BaseModel):
     saveCar: bool = False
 
 
+
+
+@app.get('/car-data')
+async def car_data(car_id: int):
+    with Session(db_engine) as session:
+        car = session.get(Car, car_id)
+    return car
+
+@app.post('/predict/', response_model=PredictionResponse)
+async def predict(car_id: int, fuel_id: int):
+    with Session(db_engine) as session:
+        car_input = session.get(Car, car_id)
+    
+    input_data = np.array([[
+        car_input.number_of_cylinders,
+        car_input.engine_type,
+        car_input.engine_horse_power,
+        car_input.engine_horse_power_rpm,
+        car_input.transmission,
+        car_input.fuel_tank_capacity,
+        car_input.acceleration_0_to_100_km,
+        fuel_id
+    ]])
+    
+    scaled_input = scaler.transform(input_data)
+    prediction = model.predict(scaled_input)
+    predicted_value = prediction[0][0]
+
+    return {"prediction": predicted_value}
+
+
+
+
+from typing import Optional
+from pydantic import BaseModel
+
 class CalculateCostRequest(BaseModel):
-    fromLatitude: float
-    fromLongitude: float
-    destinationLatitude: float
-    destinationLongitude: float
+    carId: int
+    fuelId: int
+    carCustomname: Optional[str] = None
     distance: float
+    fromLocation: str 
+    destination: str
     tolls: bool
-    userCarId: int | None = None
-    newCar: NewCarRequest | None = None
 
 
-@dummy_router.post("/calculate-cost")
+@app.post("/calculate-cost")
 async def calculate_cost(
     request: CalculateCostRequest,
     user_id: str = Depends(get_user_id),
 ):
+    prediction = await predict(request.carId, request.fuelId)
+    cost = prediction['prediction'] 
+
+    detail = History(
+        car_id=request.carId,
+        fuel_id=request.fuelId,
+        car_custom_name=CarOwnership.custom_name,
+        fuel_needed=float(cost),
+        distance=request.distance,
+        from_location=request.fromLocation,
+        destination=request.destination,
+        tolls=request.tolls,
+        fuel_cost=200000,
+        toll_cost=25000,
+        user_id=user_id
+    )
+
+    with Session(db_engine) as session:
+        session.add(detail)
+        session.commit()
+
     return {
         "message": "Cost calculated successfully",
-        "data": {
-            "id": 1,
-            "carName": "Toyota Supra MK4",
-            "carCustomName": "Supra Bapak",
-            "fuelType": "Pertalite",
-            "cyliner": "6 Cylinder",
-            "engineVolume": "3000 cc",
-            "power": "320 hp",
-            "weight": "1500 kg",
-            "fuelNeeded": 12.3,  # liter
-            "distance": 172.9,  # km
-            "from": "Jakarta",
-            "destination": "Bandung",
-            "tolls": False,
-            "fuelCost": 123000,
-            "tollCost": 0,
-            "totalCost": 123000,
-        },
+        "data": detail,
     }

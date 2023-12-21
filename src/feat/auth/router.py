@@ -3,9 +3,14 @@ from typing import Annotated
 from firebase_admin import auth
 
 
+from typing import Union
+from fastapi import Header, HTTPException
+from typing import Union
+from firebase_admin import auth
+
 def get_user_id(
-    authorization: Annotated[str | None, Header()] = None,
-    bypasstoken: Annotated[str | None, Header()] = None,
+    authorization: Union[str, None] = Header(None),
+    bypasstoken: Union[str, None] = Header(None),
 ) -> str:
     if bypasstoken == "lutfuelyeyey":
         return "VoLzzKQI9IVHc5HuggItnG7Q3EV2"

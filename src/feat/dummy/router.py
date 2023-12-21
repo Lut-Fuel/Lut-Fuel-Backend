@@ -316,6 +316,12 @@ class NewCarRequest(BaseModel):
     saveCar: bool = False
 
 
+from typing import Optional
+from pydantic import BaseModel
+
+from typing import Optional, Union
+from pydantic import BaseModel
+
 class CalculateCostRequest(BaseModel):
     fromLatitude: float
     fromLongitude: float
@@ -323,8 +329,14 @@ class CalculateCostRequest(BaseModel):
     destinationLongitude: float
     distance: float
     tolls: bool
-    userCarId: int | None = None
-    newCar: NewCarRequest | None = None
+    userCarId: Optional[int] = None
+    newCar: Optional[Union[NewCarRequest, None]] = None
+
+class NewCarRequest(BaseModel):
+    customName: str
+    carId: int
+    fuelId: int
+    saveCar: bool = False
 
 
 @dummy_router.post("/calculate-cost")
