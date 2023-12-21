@@ -5,9 +5,9 @@
 
 API for Lut-Fuel App.
 
-Language used : Python
-Framework used : FastAPI
-Database used : PostgreSQL
+- Language used : Python
+- Framework used : FastAPI
+- Database used : PostgreSQL
 
 
 ### To run the API locally, you need to : 
