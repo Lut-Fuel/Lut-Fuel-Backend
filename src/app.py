@@ -561,7 +561,7 @@ async def calculate_cost(
         destination=request.destination,
         tolls=request.tolls,
         fuel_cost=float(fuel_cost),
-        toll_cost=25000,
+        toll_cost=0,
         user_id=user_id
     )
 
@@ -585,7 +585,7 @@ async def calculate_cost(
             "destination": request.destination,
             "tolls": request.tolls,
             "fuel_cost": float(fuel_cost),
-            "toll_cost": 25000,
+            "toll_cost":0,
             "user_id": user_id
         }
         
