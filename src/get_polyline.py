@@ -18,6 +18,21 @@ def request_direction(
     ).json()
     return response
 
+def calculate_toll_cost(lat1: float, lng1: float, lat2: float, lng2: float):
+    response = requests.get(
+        "https://maps.googleapis.com/maps/api/distancematrix/json",
+        params={
+            "origins": f"{lat1},{lng1}",
+            "destinations": f"{lat2},{lng2}",
+            "mode": "driving",
+            "key": GOOGLE_MAPS_API_KEY,
+        },
+    ).json()
+    toll_cost = 0
+    if "fare" in response["rows"][0]["elements"][0]:
+        toll_cost = response["rows"][0]["elements"][0]["fare"]["value"]
+    return toll_cost
+
 
 class RouteResult(BaseModel):
     id: int  # 0 = tolls, 1 = no tolls

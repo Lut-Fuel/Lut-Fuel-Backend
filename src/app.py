@@ -14,7 +14,7 @@ from feat.auth.router import get_user_id
 from sqlmodel import Field, select
 from typing import Optional
 
-from get_polyline import get_routes, search_location
+from get_polyline import get_routes, search_location, calculate_toll_cost
 
 class PredictionResponse(BaseModel):
     prediction: float
@@ -538,6 +538,10 @@ class CalculateCostRequest(BaseModel):
     distance: float
     fromLocation: str 
     destination: str
+    fromLat: float
+    fromLang: float
+    destinationLat: float
+    destinationLang: float
     tolls: bool
 
 
@@ -549,6 +553,11 @@ async def calculate_cost(
     prediction = await predict(request.carId, request.fuelId,request.distance)
     fuel_consumption = prediction['total fuel']
     fuel_cost = prediction['total cost'] 
+    toll_cost = 0
+    if request.tolls:
+        toll_cost = calculate_toll_cost(
+            request.fromLat, request.fromLang, request.destinationLat, request.destinationLang
+        )
 
 
     detail = History(
@@ -561,7 +570,7 @@ async def calculate_cost(
         destination=request.destination,
         tolls=request.tolls,
         fuel_cost=float(fuel_cost),
-        toll_cost=0,
+        toll_cost=float(toll_cost),
         user_id=user_id
     )
 
@@ -585,7 +594,7 @@ async def calculate_cost(
             "destination": request.destination,
             "tolls": request.tolls,
             "fuel_cost": float(fuel_cost),
-            "toll_cost":0,
+            "toll_cost": float(toll_cost),
             "user_id": user_id
         }
         
