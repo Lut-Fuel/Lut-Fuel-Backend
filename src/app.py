@@ -61,6 +61,13 @@ class Car(SQLModel, table=True):
     car_name: str
 
 
+class SPBU_Data(SQLModel, table=true):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    gas_station: str
+    fuel_type: str
+    fuel_grade: int
+    cost: int
+
 model = tf.keras.models.load_model('model.h5')
 scaler = joblib.load('scaler.joblib')
 
