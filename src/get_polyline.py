@@ -12,12 +12,10 @@ def request_direction(
             "origin": f"{lat1},{lng1}",
             "destination": f"{lat2},{lng2}",
             "mode": "driving",
-            "avoidTolls": avoid_tolls,
+            "avoid": "tolls" if avoid_tolls else "",
             "extraComputations": ["TOLLS"],
             "routeModifiers": {
-                "vehicleInfo":{
-                    "emissionType": "GASOLINE"
-                },
+                "vehicleInfo": {"emissionType": "GASOLINE"},
             },
             "key": GOOGLE_MAPS_API_KEY,
         },
@@ -42,16 +40,17 @@ def get_routes(lat1: float, lng1: float, lat2: float, lng2: float) -> list[Route
         RouteResult(
             id=0,
             name="Tolls",
-            distance=tolls_route["routes"][0]["legs"][0]["distance"]["value"],
-            duration=tolls_route["routes"][0]["legs"][0]["duration"]["value"],
+            distance=tolls_route["routes"][0]["legs"][0]["distance"]["value"] // 1000,
+            duration=tolls_route["routes"][0]["legs"][0]["duration"]["value"] // 60,
             polyline=[tolls_route["routes"][0]["overview_polyline"]["points"]],
             # cost=tolls_route["routes"][0]["legs"][0]["travelAdvisory"]["tollInfo"]["estimatedPrice"][0]["nanos"],
         ),
-        RouteResult( 
+        RouteResult(
             id=1,
             name="No Tolls",
-            distance=no_tolls_route["routes"][0]["legs"][0]["distance"]["value"],
-            duration=no_tolls_route["routes"][0]["legs"][0]["duration"]["value"],
+            distance=no_tolls_route["routes"][0]["legs"][0]["distance"]["value"]
+            // 1000,
+            duration=no_tolls_route["routes"][0]["legs"][0]["duration"]["value"] // 60,
             polyline=[no_tolls_route["routes"][0]["overview_polyline"]["points"]],
         ),
     ]
@@ -83,6 +82,18 @@ def search_location(query: str) -> list[SearchLocationResult]:
     ]
 
 
+def getLocationName(lat: float, lng: float) -> str:
+    response = requests.get(
+        "https://maps.googleapis.com/maps/api/geocode/json",
+        params={
+            "latlng": f"{lat},{lng}",
+            "key": GOOGLE_MAPS_API_KEY,
+        },
+    ).json()
+    return response["results"][0]
+
+
 if __name__ == "__main__":
-    print(get_routes(-6.184610, 106.889003, -6.280051, 106.826409))
-    print(search_location("fasilkom"))
+    # print(get_routes(-6.184610, 106.889003, -6.280051, 106.826409))
+    # print(search_location("fasilkom"))
+    print(getLocationName(-6.184610, 106.889003))
