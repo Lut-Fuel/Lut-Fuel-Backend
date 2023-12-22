@@ -196,7 +196,7 @@ async def history_detail(
         history_data = {
             "id": history.id,
             "carCustomName": history.car_custom_name,
-            "fuelType": history.fuel_id,
+            "fuelId": history.fuel_id,
             "distance": history.distance,
             "from": history.from_location,
             "destination": history.destination,
@@ -214,9 +214,15 @@ async def history_detail(
             "power": car.engine_horse_power,
             "weight": car.engine_horse_power_rpm,
         })
+        query = select(SPBU_Data).where(SPBU_Data.id == history.fuel_id)
+        fuel = session.exec(query).first()
+        history_data.update({
+            "fuelType": fuel.fuel_type,
+        })
+
     return {
         "message": "Cost calculated successfully",
-        "data": history_data,
+        "data": history_data
     }
 
 
@@ -238,7 +244,7 @@ async def users_car(
             {
                 "id": car.id,
                 "customName": car.custom_name,
-                "fuelType": car.fuel_grade,
+                "fuelGrade": car.fuel_grade,
             }
             for car in cars_ownership
         ]
@@ -258,7 +264,14 @@ async def users_car(
             for car in cars
         ]
         for i in range(len(cars_ownership_data)):
-            cars_ownership_data[i].update(cars_data[i])
+            if i < len(cars_data):
+                cars_ownership_data[i].update(cars_data[i])
+                query = select(SPBU_Data).where(SPBU_Data.id == cars_ownership_data[i]["fuelGrade"])
+                fuel = session.exec(query).first()
+                cars_ownership_data[i].update({
+                    "fuelType": fuel.fuel_type,
+                })
+
     return {
         "message": "User's car list fetched successfully",
         "data": cars_ownership_data,
@@ -295,9 +308,9 @@ async def search_car(
 
 
 class AddUserCarRequest(BaseModel):
-    customName: str
-    carId: int
-    fuelId: int
+        customName: str
+        carId: int
+        fuelId: int
 
 
 @app.post("/users-car")
@@ -505,6 +518,7 @@ async def calculate_cost(
         user_id=user_id
     )
 
+    detail_data = detail.dict()
 
 
     with Session(db_engine) as session:
@@ -513,11 +527,24 @@ async def calculate_cost(
         # session.refresh(detail)
         session.commit()
 
+        query = select(Car).where(Car.id == request.carId)
+        car = session.exec(query).first()
+        detail_data.update({
+            "carName": car.car_name,
+        })
+        query = select(SPBU_Data).where(SPBU_Data.id == request.fuelId)
+        fuel = session.exec(query).first()
+        detail_data.update({
+            "fuelType": fuel.fuel_type,
+        })
+
+
     return {
         "message": "Cost calculated successfully",
         "data": {
             "car_id": request.carId,
             "fuel_id": request.fuelId,
+            "car_name": detail_data["carName"],
             "car_custom_name": request.carCustomname,
             "distance": request.distance,
             "fuel_needed": float(fuel_consumption),
@@ -526,7 +553,9 @@ async def calculate_cost(
             "tolls": request.tolls,
             "fuel_cost": float(fuel_cost),
             "toll_cost": request.tollCost,
-            "user_id": user_id
+            "user_id": user_id,
+            "totalCost": float(fuel_cost) + request.tollCost,
+            "fuelType": detail_data["fuelType"],
         }
         
     }
