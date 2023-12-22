@@ -14,7 +14,7 @@ from feat.auth.router import get_user_id
 from sqlmodel import Field, select
 from typing import Optional
 
-from get_polyline import get_routes, search_location, calculate_toll_cost
+from get_polyline import get_routes, search_location
 
 class PredictionResponse(BaseModel):
     prediction: float
@@ -331,30 +331,6 @@ async def delete_user_car(
     return {"message": "User's car deleted successfully"}
 
 
-## Search Location
-
-# - Route : `/location/search`
-# - Method : `GET`
-# - Header : `Authorization` : `Bearer <token>`
-# - Query Parameters
-#   - `q`: `string`, optional, default `""`
-# - Expected Response
-
-# ```json
-# {
-#   "message": "Location list fetched successfully",
-#   "data": [
-#     // Max 5
-#     {
-#       "name": "Fakultas Teknik Univ ABC",
-#       "address": "Jl. ABC No. 123, Jakarta Selatan, DKI Jakarta",
-#       "latitude": -6.123456,
-#       "longitude": 106.123456
-#     }
-#   ]
-# }
-# ```
-
 
 @app.get("/location/search")
 async def search_loc(
@@ -367,52 +343,6 @@ async def search_loc(
     }
 
 
-#     return {
-#         "message": "Location list fetched successfully",
-#         "data": [
-#             {
-#                 "name": "Fakultas Teknik Univ ABC",
-#                 "address": "Jl. ABC No. 123, Jakarta Selatan, DKI Jakarta",
-#                 "latitude": -6.123456,
-#                 "longitude": 106.123456,
-#             }
-#         ],
-#     }
-
-
-## Get Routes
-
-# - Route : `/routes`
-# - Method : `GET`
-# - Header : `Authorization` : `Bearer <token>`
-# - Query Parameters
-#   - `fromLatitude`: `double`, required
-#   - `fromLongitude`: `double`, required
-#   - `destinationLatitude`: `double`, required
-#   - `destinationLongitude`: `double`, required
-# - Expected Response
-
-# ```json
-# {
-#   "message": "Routes fetched successfully",
-#   "data": [
-#     {
-#       "id": 1,
-#       "name": "Route 1",
-#       "tolls": false,
-#       "distance": 172.9, // km
-#       "duration": 230, // minutes
-#       "cost": 123000, // rupiah
-#       "polyline": [
-#         "vs{d@yx}jSe@DYBu@H_@D]Hc@NG@c@PYLQFu@POB[J_@J_@HOBOBy@N_@F}@LcALe@HIBC?aAPQBm@JqATeAP",
-#         "zrzd@oo}jSABABA?EBKB]HiC`@",
-#         "zlzd@sm}jSC@SBiATkAT",
-#         "lgzd@al}jSQLMFMLSRSbC"
-#       ]
-#     }
-#   ]
-# }
-# ```
 
 
 @app.get("/routes")
@@ -543,6 +473,7 @@ class CalculateCostRequest(BaseModel):
     destinationLat: float
     destinationLang: float
     tolls: bool
+    tollCost: float
 
 
 @app.post("/calculate-cost")
@@ -553,11 +484,11 @@ async def calculate_cost(
     prediction = await predict(request.carId, request.fuelId,request.distance)
     fuel_consumption = prediction['total fuel']
     fuel_cost = prediction['total cost'] 
-    toll_cost = 0
-    if request.tolls:
-        toll_cost = calculate_toll_cost(
-            request.fromLat, request.fromLang, request.destinationLat, request.destinationLang
-        )
+    toll_cost = request.tollCost
+    # if request.tolls:
+    #     toll_cost = calculate_toll_cost(
+    #         request.fromLat, request.fromLang, request.destinationLat, request.destinationLang
+    #     )
 
 
     detail = History(
@@ -570,7 +501,7 @@ async def calculate_cost(
         destination=request.destination,
         tolls=request.tolls,
         fuel_cost=float(fuel_cost),
-        toll_cost=float(toll_cost),
+        toll_cost=request.tollCost,
         user_id=user_id
     )
 
@@ -594,8 +525,69 @@ async def calculate_cost(
             "destination": request.destination,
             "tolls": request.tolls,
             "fuel_cost": float(fuel_cost),
-            "toll_cost": float(toll_cost),
+            "toll_cost": request.tollCost,
             "user_id": user_id
         }
         
     }
+
+
+
+## Search Location
+
+# - Route : `/location/search`
+# - Method : `GET`
+# - Header : `Authorization` : `Bearer <token>`
+# - Query Parameters
+#   - `q`: `string`, optional, default `""`
+# - Expected Response
+
+# ```json
+# {
+#   "message": "Location list fetched successfully",
+#   "data": [
+#     // Max 5
+#     {
+#       "name": "Fakultas Teknik Univ ABC",
+#       "address": "Jl. ABC No. 123, Jakarta Selatan, DKI Jakarta",
+#       "latitude": -6.123456,
+#       "longitude": 106.123456
+#     }
+#   ]
+# }
+# ```
+
+
+## Get Routes
+
+# - Route : `/routes`
+# - Method : `GET`
+# - Header : `Authorization` : `Bearer <token>`
+# - Query Parameters
+#   - `fromLatitude`: `double`, required
+#   - `fromLongitude`: `double`, required
+#   - `destinationLatitude`: `double`, required
+#   - `destinationLongitude`: `double`, required
+# - Expected Response
+
+# ```json
+# {
+#   "message": "Routes fetched successfully",
+#   "data": [
+#     {
+#       "id": 1,
+#       "name": "Route 1",
+#       "tolls": false,
+#       "distance": 172.9, // km
+#       "duration": 230, // minutes
+#       "cost": 123000, // rupiah
+#       "polyline": [
+#         "vs{d@yx}jSe@DYBu@H_@D]Hc@NG@c@PYLQFu@POB[J_@J_@HOBOBy@N_@F}@LcALe@HIBC?aAPQBm@JqATeAP",
+#         "zrzd@oo}jSABABA?EBKB]HiC`@",
+#         "zlzd@sm}jSC@SBiATkAT",
+#         "lgzd@al}jSQLMFMLSRSbC"
+#       ]
+#     }
+#   ]
+# }
+# ```

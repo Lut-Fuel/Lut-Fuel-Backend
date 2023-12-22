@@ -13,25 +13,16 @@ def request_direction(
             "destination": f"{lat2},{lng2}",
             "mode": "driving",
             "avoidTolls": avoid_tolls,
+            "extraComputations": ["TOLLS"],
+            "routeModifiers": {
+                "vehicleInfo":{
+                    "emissionType": "GASOLINE"
+                },
+            },
             "key": GOOGLE_MAPS_API_KEY,
         },
     ).json()
     return response
-
-def calculate_toll_cost(lat1: float, lng1: float, lat2: float, lng2: float):
-    response = requests.get(
-        "https://maps.googleapis.com/maps/api/distancematrix/json",
-        params={
-            "origins": f"{lat1},{lng1}",
-            "destinations": f"{lat2},{lng2}",
-            "mode": "driving",
-            "key": GOOGLE_MAPS_API_KEY,
-        },
-    ).json()
-    toll_cost = 0
-    if "fare" in response["rows"][0]["elements"][0]:
-        toll_cost = response["rows"][0]["elements"][0]["fare"]["value"]
-    return toll_cost
 
 
 class RouteResult(BaseModel):
@@ -46,6 +37,7 @@ class RouteResult(BaseModel):
 def get_routes(lat1: float, lng1: float, lat2: float, lng2: float) -> list[RouteResult]:
     tolls_route = request_direction(lat1, lng1, lat2, lng2, False)
     no_tolls_route = request_direction(lat1, lng1, lat2, lng2, True)
+    print(tolls_route)
     return [
         RouteResult(
             id=0,
@@ -53,6 +45,7 @@ def get_routes(lat1: float, lng1: float, lat2: float, lng2: float) -> list[Route
             distance=tolls_route["routes"][0]["legs"][0]["distance"]["value"],
             duration=tolls_route["routes"][0]["legs"][0]["duration"]["value"],
             polyline=[tolls_route["routes"][0]["overview_polyline"]["points"]],
+            # cost=tolls_route["routes"][0]["legs"][0]["travelAdvisory"]["tollInfo"]["estimatedPrice"][0]["nanos"],
         ),
         RouteResult(
             id=1,
